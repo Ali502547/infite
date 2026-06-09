@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+  <title>Очень странные дела</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(145deg, #f7f5f0 0%, #ede8df 100%);
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.5rem; margin: 0; color: #2e2e2e;
+    }
+    .app-container { width: 100%; max-width: 480px; position: relative; }
+    .card {
+      background: #fff; border-radius: 2.2rem; padding: 2.3rem 1.8rem;
+      box-shadow: 0 25px 45px rgba(0,0,0,0.05), 0 8px 20px rgba(0,0,0,0.03);
+      transition: opacity 0.35s, transform 0.35s; min-height: 380px;
+      display: flex; flex-direction: column; opacity: 1; transform: translateY(0);
+    }
+    .card.fade-out { opacity: 0; transform: translateY(10px); pointer-events: none; }
+    .step-badge {
+      font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px;
+      color: #9b9b8a; margin-bottom: 1.2rem; font-weight: 500;
+    }
+    .question-title { font-size: 1.7rem; font-weight: 450; line-height: 1.3; margin-bottom: 1.8rem; }
+    .options { display: flex; flex-direction: column; gap: 0.8rem; margin-top: 0.3rem; }
+    .option-btn {
+      background: #f8f6f2; border: 1px solid rgba(0,0,0,0.04); padding: 1rem 1.4rem;
+      border-radius: 2.5rem; font-size: 1rem; text-align: left; cursor: pointer;
+      transition: 0.2s; color: #2d2d2d; font-weight: 400; display: flex; align-items: center; gap: 0.5rem;
+    }
+    .option-btn:hover { background: #efebe2; transform: translateY(-1px); }
+    .option-btn:disabled { opacity: 0.6; pointer-events: none; }
+    .primary-btn {
+      background: #2e2e2e; color: white; border: none; padding: 0.9rem 2rem;
+      border-radius: 3rem; font-size: 1rem; font-weight: 500; cursor: pointer;
+      transition: 0.25s; margin-top: 1.8rem; display: inline-block;
+    }
+    .primary-btn:hover { background: #1f1f1f; transform: scale(1.02); }
+    .btn-green {
+      background: #2e7d32; color: white; border: none; padding: 0.9rem 2rem;
+      border-radius: 3rem; font-size: 1rem; font-weight: 500; cursor: pointer; margin: 0.8rem 0;
+    }
+    .btn-green:hover { background: #1f5a23; }
+    .btn-gray {
+      background: #e0ddd6; color: #2e2e2e; border: none; padding: 0.8rem 1.8rem;
+      border-radius: 3rem; font-size: 0.95rem; font-weight: 500; cursor: pointer; margin: 0.4rem 0;
+    }
+    .btn-gray:hover { background: #cec9bf; }
+    .achievement-toast {
+      position: fixed; top: 20px; right: 20px; background: rgba(255,250,245,0.95);
+      backdrop-filter: blur(15px); border-radius: 2rem; padding: 0.8rem 1.5rem;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.08); display: flex; align-items: center;
+      gap: 0.5rem; font-weight: 480; z-index: 100; transform: translateX(120%);
+      animation: slideInToast 0.4s cubic-bezier(0.2,0.8,0.2,1) forwards;
+      border: 1px solid rgba(180,160,130,0.2); font-size: 0.9rem;
+    }
+    @keyframes slideInToast {
+      0% { transform: translateX(120%); opacity: 0; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(6px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .achievement-list-item {
+      opacity: 0; animation: fadeIn 0.5s forwards; padding: 0.5rem 0;
+      border-bottom: 1px solid #ece7dd; display: flex; align-items: center; gap: 0.6rem;
+    }
+    .final-buttons { display: flex; flex-direction: column; align-items: center; margin-top: 1.8rem; gap: 0.4rem; }
+    .summary-line { opacity: 0; animation: fadeIn 0.4s forwards; margin: 0.5rem 0; }
+    .small-text { font-size: 0.9rem; color: #5f5f50; }
+  </style>
+</head>
+<body>
+<div class="app-container" id="app"></div>
+
+<script>
+  (function() {
+    // =============================================
+    // НАСТРОЙКИ (замени эти значения на свои)
+    // =============================================
+    const TG_BOT_TOKEN = "8693526821:AAHWXrH28cZetqsFfTqnuqetR04bArpW01c"; // ← замени
+    const TG_CHAT_ID = "829076993";           // ← замени (только цифры)
+    const GIF_YES = "радость.jpg";
+    const GIF_MAYBE = "пупупу.jpg";
+    const GIF_NO = "пупупу.jpg";
+
+    // Состояние
+    const answers = {
+      morning: '',
+      walk: '',
+      dinner: '',
+      sweet: '',
+      rain: '',
+      memorable: ''
+    };
+    const achievements = [
+      'Знает толк в хороших утрах',
+      'Авантюрист',
+      'Гастрономический путеводитель',
+      '', 
+      'Непромокаемый оптимист',
+      'Коллекционер лучших моментов'
+    ];
+    let currentStep = 0;
+    let selectedFinalChoice = null;
+
+    function showToast(name) {
+      const toast = document.createElement('div');
+      toast.className = 'achievement-toast';
+      toast.innerHTML = `<span class="achievement-icon">🏆</span> ${name}`;
+      document.body.appendChild(toast);
+      setTimeout(() => { if(toast.parentNode) toast.remove(); }, 3500);
+    }
+
+    function transitionTo(html, callback) {
+      const currentCard = document.querySelector('.card');
+      if (currentCard) {
+        currentCard.classList.add('fade-out');
+        setTimeout(() => {
+          document.getElementById('app').innerHTML = `<div class="card" id="main-card">${html}</div>`;
+          if (callback) callback();
+        }, 350);
+      } else {
+        document.getElementById('app').innerHTML = `<div class="card" id="main-card">${html}</div>`;
+        if (callback) callback();
+      }
+    }
+
+    function renderDirect(html, callback) {
+      document.getElementById('app').innerHTML = `<div class="card" id="main-card">${html}</div>`;
+      if (callback) callback();
+    }
+
+    function goToStep(step) {
+      currentStep = step;
+      switch (step) {
+        case 0: renderStart(); break;
+        case 1: renderStep1(); break;
+        case 2: renderStep2(); break;
+        case 3: renderStep3(); break;
+        case 4: renderStep4(); break;
+        case 5: renderStep5(); break;
+        case 6: renderStep6(); break;
+        case 7: renderAchievementsScreen(); break;
+        case 8: renderSummary7(); break;
+        case 9: renderInvite(); break;
+        case 10: renderFinalResponse(); break;
+        case 11: sendToTelegramAndShowScreen(); break;
+      }
+    }
+
+    function renderStart() {
+      const html = `
+        <div class="step-badge">Очень странные дела</div>
+        <div class="question-title">Очень странные дела</div>
+        <p style="color:#4a4a40; margin:0.5rem 0 1.8rem; line-height:1.6; font-size:1rem;">
+          Это небольшой тест. Вопросы вроде бы странные, но каждый для чего-то важен. В конце теста... впрочем, это пока засекречено.
+        </p>
+        <button class="primary-btn" id="start-btn">Начать</button>
+      `;
+      renderDirect(html);
+      document.getElementById('start-btn').addEventListener('click', () => goToStep(1));
+    }
+
+    function renderStep1() {
+      transitionTo(`
+        <div class="step-badge">Этап 1 из 6 — Темп</div>
+        <div class="question-title">Ты проснулась утром. За окном солнце, спешить некуда. Что происходит дальше?</div>
+        <div class="options" id="options">
+          <button class="option-btn" data-value="Долгий завтрак, не спеша">🥐 Долгий завтрак, не спеша</button>
+          <button class="option-btn" data-value="Быстро собраться и на улицу, город ждёт">🚶 Быстро собраться и на улицу, город ждёт</button>
+          <button class="option-btn" data-value="Поваляться подольше, а там видно будет">🛌 Поваляться подольше, а там видно будет</button>
+        </div>`, () => {
+        document.querySelectorAll('.option-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            answers.morning = e.currentTarget.dataset.value;
+            achievements[0] = 'Знает толк в хороших утрах';
+            showToast(achievements[0]);
+            disableOptions();
+            setTimeout(() => goToStep(2), 900);
+          });
+        });
+      });
+    }
+    function renderStep2() {
+      transitionTo(`
+        <div class="step-badge">Этап 2 из 6 — Хорошая погода</div>
+        <div class="question-title">Выходной, на улице хорошая погода и весь день впереди. Чем займёшься в первую очередь?</div>
+        <div class="options" id="options">
+          <button class="option-btn" data-value="Просто гулять и наслаждаться погодой">🌳 Просто гулять и наслаждаться погодой</button>
+          <button class="option-btn" data-value="Гулять и заходить в уютные кафе">☕ Гулять и заходить в уютные кафе</button>
+          <button class="option-btn" data-value="Найти красивое место и расслабиться">🌿 Найти красивое место и расслабиться</button>
+        </div>`, () => {
+        document.querySelectorAll('.option-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            answers.walk = e.currentTarget.dataset.value;
+            achievements[1] = 'Авантюрист';
+            showToast(achievements[1]);
+            disableOptions();
+            setTimeout(() => goToStep(3), 900);
+          });
+        });
+      });
+    }
+    function renderStep3() {
+      transitionTo(`
+        <div class="step-badge">Этап 3 из 6 — Еда</div>
+        <div class="question-title">Ты гуляешь по городу, уже вечер, пора ужинать. Куда пойдёшь?</div>
+        <div class="options" id="options">
+          <button class="option-btn" data-value="Найти уютное место со вкусной едой">🍝 Найти уютное место со вкусной едой</button>
+          <button class="option-btn" data-value="Заранее изученные рекомендации, только лучшее">⭐ Заранее изученные рекомендации, только лучшее</button>
+          <button class="option-btn" data-value="Куда глаза глядят, главное атмосфера">✨ Куда глаза глядят, главное атмосфера</button>
+        </div>`, () => {
+        document.querySelectorAll('.option-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            answers.dinner = e.currentTarget.dataset.value;
+            achievements[2] = 'Гастрономический путеводитель';
+            showToast(achievements[2]);
+            disableOptions();
+            setTimeout(() => goToStep(4), 900);
+          });
+        });
+      });
+    }
+    function renderStep4() {
+      transitionTo(`
+        <div class="step-badge">Этап 4 из 6 — Сладкое</div>
+        <div class="question-title">Что должно быть рядом с чашкой чая?</div>
+        <div class="options" id="options">
+          <button class="option-btn" data-value="Шоколад — горький или молочный">🍫 Шоколад — горький или молочный</button>
+          <button class="option-btn" data-value="Мучное (печенье, круассан и т.п)">🥐 Мучное (печенье, круассан и т.п)</button>
+          <button class="option-btn" data-value="Пирожное из кондитерской">🍰 Пирожное из кондитерской</button>
+          <button class="option-btn" data-value="Не люблю сладкое">🚫 Не люблю сладкое</button>
+        </div>`, () => {
+        document.querySelectorAll('.option-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            answers.sweet = e.currentTarget.dataset.value;
+            achievements[3] = (answers.sweet === 'Не люблю сладкое') ? 'Иммунитет к десертам' : 'Сладкоежка';
+            showToast(achievements[3]);
+            disableOptions();
+            setTimeout(() => goToStep(5), 900);
+          });
+        });
+      });
+    }
+    function renderStep5() {
+      transitionTo(`
+        <div class="step-badge">Этап 5 из 6 — Дождь</div>
+        <div class="question-title">Пошёл дождь. Ты на прогулке, а зонт забыла. Что делаешь?</div>
+        <div class="options" id="options">
+          <button class="option-btn" data-value="Иду дальше, всего лишь дождь...">🌧 Иду дальше, всего лишь дождь...</button>
+          <button class="option-btn" data-value="Забегаю в первое попавшееся кафе переждать">☕ Забегаю в первое попавшееся кафе переждать</button>
+          <button class="option-btn" data-value="Превращаю это в приключение: гулять под дождём">🌈 Превращаю это в приключение: гулять под дождём</button>
+          <button class="option-btn" data-value="Покупаю зонт у прохожего">☂️ Покупаю зонт у прохожего</button>
+        </div>`, () => {
+        document.querySelectorAll('.option-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            answers.rain = e.currentTarget.dataset.value;
+            achievements[4] = 'Непромокаемый оптимист';
+            showToast(achievements[4]);
+            disableOptions();
+            setTimeout(() => goToStep(6), 900);
+          });
+        });
+      });
+    }
+    function renderStep6() {
+      transitionTo(`
+        <div class="step-badge">Этап 6 из 6 — Впечатления</div>
+        <div class="question-title">Что делает отдых запоминающимся?</div>
+        <div class="options" id="options">
+          <button class="option-btn" data-value="Люди, с которыми ты его разделяешь">❤️ Люди, с которыми ты его разделяешь</button>
+          <button class="option-btn" data-value="Места, от которых захватывает дух">🏞️ Места, от которых захватывает дух</button>
+          <button class="option-btn" data-value="Моменты, которые не спланируешь заранее">✨ Моменты, которые не спланируешь заранее</button>
+          <button class="option-btn" data-value="Еда, которую хочется вспоминать">🍽️ Еда, которую хочется вспоминать</button>
+        </div>`, () => {
+        document.querySelectorAll('.option-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            answers.memorable = e.currentTarget.dataset.value;
+            achievements[5] = 'Коллекционер лучших моментов';
+            showToast(achievements[5]);
+            disableOptions();
+            setTimeout(() => goToStep(7), 900);
+          });
+        });
+      });
+    }
+
+    function disableOptions() {
+      document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+    }
+
+    function renderAchievementsScreen() {
+      transitionTo(`
+        <div class="step-badge">Достижения</div>
+        <div class="question-title" style="font-size:1.5rem;">Твои достижения</div>
+        <div id="ach-list" style="margin:1rem 0;"></div>
+        <button class="primary-btn" id="open-secret" style="display:none; margin-top:1.5rem;">Открыть секретный этап</button>
+      `, () => {
+        const container = document.getElementById('ach-list');
+        achievements.forEach((ach, index) => {
+          setTimeout(() => {
+            const div = document.createElement('div');
+            div.className = 'achievement-list-item';
+            div.innerHTML = `🏆 ${ach}`;
+            container.appendChild(div);
+            if (index === achievements.length - 1) {
+              setTimeout(() => {
+                document.getElementById('open-secret').style.display = 'inline-block';
+                document.getElementById('open-secret').addEventListener('click', () => goToStep(8));
+              }, 200);
+            }
+          }, index * 600);
+        });
+      });
+    }
+
+    function renderSummary7() {
+      const sweetText = answers.sweet === 'Не люблю сладкое' ? 'ни намёка на пирожные' : 'теперь знаю что предлагать к чаю';
+      const lines = [
+        `Утро: ${answers.morning} — я понял, в каком темпе начинается твоё утро`,
+        `Прогулки: ${answers.walk} — теперь знаю какими ты любишь прогулки`,
+        `Ужин: ${answers.dinner} — примерно представляю, где предпочитаешь ужинать`,
+        `К чаю: ${answers.sweet} — ${sweetText}`,
+        `Дождь: ${answers.rain} — дожди часто застают врасплох, но теперь есть план`,
+        `Главное: ${answers.memorable} — интересное мнение`
+      ];
+      transitionTo(`
+        <div class="step-badge">Этап 7 из 6 — Итог</div>
+        <div class="question-title">Что узнал о тебе</div>
+        <div id="summary-container" style="margin:1.2rem 0;"></div>
+        <button class="primary-btn" id="continue-btn" style="display:none;">Продолжить</button>
+      `, () => {
+        const container = document.getElementById('summary-container');
+        lines.forEach((line, idx) => {
+          setTimeout(() => {
+            const p = document.createElement('p');
+            p.className = 'summary-line';
+            p.textContent = line;
+            container.appendChild(p);
+            if (idx === lines.length - 1) {
+              setTimeout(() => {
+                const btn = document.getElementById('continue-btn');
+                btn.style.display = 'inline-block';
+                btn.addEventListener('click', () => {
+                  showToast('Идёт до конца');
+                  setTimeout(() => goToStep(9), 400);
+                });
+              }, 300);
+            }
+          }, idx * 500);
+        });
+      });
+    }
+
+    function renderInvite() {
+      transitionTo(`
+        <div class="step-badge">Приглашение</div>
+        <div class="question-title" style="font-size:1.5rem;">Приглашение</div>
+        <p style="margin:1rem 0; line-height:1.5;">
+          В общем, всё это было ради приглашения.<br><br>
+          Не хочешь как-нибудь в августе отгулять недельку от работы в Питер?<br>
+          Перелёты, проживание и т.п расходы на мне.<br>
+          Свожу в Эрмитаж, прогуляемся по центру (ты же любишь не весь Питер) и вообще куда ты сама захочешь.<br>
+          Что думаешь?
+        </p>
+        <div class="final-buttons">
+          <button class="btn-gray" id="btn-maybe">Мне нужно подумать</button>
+          <button class="btn-green" id="btn-yes">Хорошая идея</button>
+          <button class="btn-gray" id="btn-no">Нет</button>
+        </div>
+      `, () => {
+        document.getElementById('btn-yes').addEventListener('click', () => { selectedFinalChoice = 'yes'; goToStep(10); });
+        document.getElementById('btn-maybe').addEventListener('click', () => { selectedFinalChoice = 'maybe'; goToStep(10); });
+        document.getElementById('btn-no').addEventListener('click', () => { selectedFinalChoice = 'no'; goToStep(10); });
+      });
+    }
+
+    function renderFinalResponse() {
+      let message = '';
+      let imageUrl = '';
+      if (selectedFinalChoice === 'yes') {
+        message = 'Ого, это был самый желанный и неожиданный вариант ответа. Отлично! Я очень рад что ты согласилась. Значит, план активирован и начну всё организовывать.';
+        imageUrl = GIF_YES;
+      } else if (selectedFinalChoice === 'maybe') {
+        message = '«Мне нужно подумать» — это ещё не «нет», а значит надежда живет. Хорошо, я терпеливый. Но учти, Эрмитаж сам себя не посетит, а Питер без тебя будет скучать.';
+        imageUrl = GIF_MAYBE;
+      } else if (selectedFinalChoice === 'no') {
+        message = 'Хорошо. Я всё понимаю и не хочу, чтобы ты чувствовала себя неловко. Никаких обид. А предложение всегда в силе.';
+        imageUrl = GIF_NO;
+      }
+
+      const imageHtml = `<div style="display:flex; align-items:center; justify-content:center; height:100%;"><img src="${imageUrl}" alt="реакция" style="max-width:100%; border-radius:1.5rem;" /></div>`;
+      const messageHtml = `
+        <div class="step-badge">Ответ</div>
+        <p style="font-size:1.1rem; line-height:1.5; margin:1.2rem 0;">${message}</p>
+        <div style="display:flex; gap:0.8rem; margin-top:2rem; justify-content:center; flex-wrap:wrap;">
+          <button class="btn-gray" id="back-btn">← Вернуться</button>
+          <button class="primary-btn" id="send-btn">Завершить и отправить решение</button>
+        </div>`;
+
+      document.getElementById('app').innerHTML = `<div class="card" id="main-card" style="display:flex; align-items:center; justify-content:center;">${imageHtml}</div>`;
+      setTimeout(() => {
+        document.getElementById('app').innerHTML = `<div class="card" id="main-card">${messageHtml}</div>`;
+        document.getElementById('back-btn').addEventListener('click', () => goToStep(9));
+        document.getElementById('send-btn').addEventListener('click', () => goToStep(11));
+      }, 2000);
+    }
+
+    // Отправка в Telegram
+    function sendToTelegramAndShowScreen() {
+      const choiceText = selectedFinalChoice === 'yes' ? '✅ Да' : selectedFinalChoice === 'maybe' ? '🤔 Может быть' : '❌ Нет';
+      const text = `📨 <b>Ответы из теста «Очень странные дела»</b>\n\n` +
+        `☀️ Утро: ${answers.morning}\n` +
+        `🚶 Прогулки: ${answers.walk}\n` +
+        `🍝 Ужин: ${answers.dinner}\n` +
+        `🍰 К чаю: ${answers.sweet}\n` +
+        `🌧 Дождь: ${answers.rain}\n` +
+        `❤️ Главное: ${answers.memorable}\n\n` +
+        `📌 Финальный выбор: ${choiceText}`;
+
+      const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`;
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: TG_CHAT_ID,
+          text: text,
+          parse_mode: 'HTML'
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Отправлено в Telegram:', data);
+        renderSentScreen();
+      })
+      .catch(error => {
+        console.error('Ошибка отправки:', error);
+        renderSentScreen(); // всё равно показываем экран
+      });
+    }
+
+    function renderSentScreen() {
+      const html = `
+        <div class="step-badge">Готово</div>
+        <div class="question-title">Твой ответ отправлен!</div>
+        <p style="margin:1.5rem 0;">Спасибо за прохождение теста. Я получил твой ответ.</p>
+        <button class="primary-btn" id="close-btn">Закрыть страницу</button>
+      `;
+      transitionTo(html, () => {
+        document.getElementById('close-btn').addEventListener('click', () => {
+          if (window.close) window.close();
+          else window.location.href = 'about:blank';
+        });
+      });
+    }
+
+    goToStep(0);
+  })();
+</script>
+</body>
+</html>
