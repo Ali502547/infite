@@ -431,36 +431,38 @@
 
     // Отправка в Telegram
     function sendToTelegramAndShowScreen() {
-      const choiceText = selectedFinalChoice === 'yes' ? '✅ Да' : selectedFinalChoice === 'maybe' ? '🤔 Может быть' : '❌ Нет';
-      const text = `📨 <b>Ответы из теста «Очень странные дела»</b>\n\n` +
-        `☀️ Утро: ${answers.morning}\n` +
-        `🚶 Прогулки: ${answers.walk}\n` +
-        `🍝 Ужин: ${answers.dinner}\n` +
-        `🍰 К чаю: ${answers.sweet}\n` +
-        `🌧 Дождь: ${answers.rain}\n` +
-        `❤️ Главное: ${answers.memorable}\n\n` +
-        `📌 Финальный выбор: ${choiceText}`;
+  const choiceText = selectedFinalChoice === 'yes' ? '✅ Да' : selectedFinalChoice === 'maybe' ? '🤔 Может быть' : '❌ Нет';
+  const text = `📨 <b>Ответы из теста «Очень странные дела»</b>\n\n` +
+    `☀️ Утро: ${answers.morning}\n` +
+    `🚶 Прогулки: ${answers.walk}\n` +
+    `🍽️ Ужин: ${answers.dinner}\n` +
+    `🍪 К чаю: ${answers.sweet}\n` +
+    `☔ Дождь: ${answers.rain}\n` +
+    `😌 Главное: ${answers.memorable}\n\n` +
+    `📌 Финальный выбор: ${choiceText}`;
 
-      const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`;
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: TG_CHAT_ID,
-          text: text,
-          parse_mode: 'HTML'
-        })
-      })
-      .then(response => response.json())
-      .then(data => {
-        console.log('Отправлено в Telegram:', data);
-        renderSentScreen();
-      })
-      .catch(error => {
-        console.error('Ошибка отправки:', error);
-        renderSentScreen(); // всё равно показываем экран
-      });
-    }
+  const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`;
+  const finalUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
+
+  fetch(finalUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: TG_CHAT_ID,
+      text: text,
+      parse_mode: 'HTML'
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log('Отправлено в Telegram:', data);
+    renderSentScreen();
+  })
+  .catch(error => {
+    console.error('Ошибка отправки:', error);
+    renderSentScreen();
+  });
+}
 
     function renderSentScreen() {
       const html = `
