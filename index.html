@@ -361,14 +361,13 @@
     function renderInvite() {
       transitionTo(`
         <div class="step-badge">Приглашение</div>
-        <div class="question-title" style="font-size:1.5rem;">Приглашение</div>
         <p style="margin:1rem 0; line-height:1.5;">
-          В общем, всё это было ради приглашения.<br><br>
-          Не хочешь как-нибудь в августе отгулять недельку от работы в Питер?<br>
-          Перелёты, проживание и т.п расходы на мне.<br>
-          Свожу в Эрмитаж, прогуляемся по центру (ты же любишь не весь Питер) и вообще куда ты сама захочешь.<br>
-          Что думаешь?
-        </p>
+  В общем, всё это было ради этого.<br><br>
+  Не хочешь как-нибудь в августе отгулять недельку от работы в Питер? 👉👈<br>
+  Перелёты, проживание и прочие расходы на мне.<br>
+  Свожу в Эрмитаж, прогуляемся по центру (ты же любишь не весь Питер 😄) и вообще куда ты сама захочешь.<br>
+  Что думаешь?
+</p>
         <div class="final-buttons">
           <button class="btn-gray" id="btn-maybe">Мне нужно подумать</button>
           <button class="btn-green" id="btn-yes">Хорошая идея</button>
@@ -382,18 +381,18 @@
     }
 
     function renderFinalResponse() {
-      let message = '';
-      let imageUrl = '';
-      if (selectedFinalChoice === 'yes') {
-        message = 'Ого, это был самый желанный и неожиданный вариант ответа. Отлично! Я очень рад что ты согласилась. Значит, план активирован и начну всё организовывать.';
-        imageUrl = GIF_YES;
-      } else if (selectedFinalChoice === 'maybe') {
-        message = '«Мне нужно подумать» — это ещё не «нет», а значит надежда живет. Хорошо, я терпеливый. Но учти, Эрмитаж сам себя не посетит, а Питер без тебя будет скучать.';
-        imageUrl = GIF_MAYBE;
-      } else if (selectedFinalChoice === 'no') {
-        message = 'Хорошо. Я всё понимаю и не хочу, чтобы ты чувствовала себя неловко. Никаких обид. А предложение всегда в силе.';
-        imageUrl = GIF_NO;
-      }
+  let message = '';
+  let imageUrl = '';
+  if (selectedFinalChoice === 'yes') {
+    message = 'Ого, это был самый желанный и неожиданный вариант ответа. 🤩 Я очень рад что ты согласилась. Значит, план активирован и начну всё организовывать. 🙃';
+    imageUrl = GIF_YES;
+  } else if (selectedFinalChoice === 'maybe') {
+    message = '«Мне нужно подумать» — это ещё не «нет», а значит надежда живет. Хорошо, я терпеливый. Но учти, Эрмитаж сам себя не посетит, а Питер без тебя будет скучать. 😄';
+    imageUrl = GIF_MAYBE;
+  } else if (selectedFinalChoice === 'no') {
+    message = 'Хорошо. Я всё понимаю и не хочу, чтобы ты чувствовала себя неловко. Никаких обид. 😊 А предложение всегда в силе.';
+    imageUrl = GIF_NO;
+  }
 
       const imageHtml = `<div style="display:flex; align-items:center; justify-content:center; height:100%;"><img src="${imageUrl}" alt="реакция" style="max-width:100%; border-radius:1.5rem;" /></div>`;
       const messageHtml = `
